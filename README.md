@@ -83,8 +83,4 @@ Pull request dipersilakan! Untuk perubahan besar, harap buka issue terlebih dahu
 
 Dibuat dengan ❤️ untuk keperluan load testing dan monitoring sederhana.
 
-```
-
----
-
-Semoga membantu! Kalau mau nambahin fitur atau ganti warna tema dashboard, tinggal bilang ya.
+                © DixzzXD
