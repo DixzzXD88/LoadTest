@@ -1,1 +1,513 @@
+<!DOCTYPE html>
 
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DDOS Monitor - Realtime</title>
+
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+
+        * {
+
+            margin: 0;
+
+            padding: 0;
+
+            box-sizing: border-box;
+
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+        }
+
+        
+
+        body {
+
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+            min-height: 100vh;
+
+            padding: 20px;
+
+            color: white;
+
+        }
+
+        
+
+        .container {
+
+            max-width: 1200px;
+
+            margin: 0 auto;
+
+        }
+
+        
+
+        h1 {
+
+            text-align: center;
+
+            margin-bottom: 30px;
+
+            font-size: 2.5em;
+
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+
+        }
+
+        
+
+        .stats-grid {
+
+            display: grid;
+
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+
+            gap: 20px;
+
+            margin-bottom: 30px;
+
+        }
+
+        
+
+        .stat-card {
+
+            background: rgba(255, 255, 255, 0.1);
+
+            backdrop-filter: blur(10px);
+
+            border-radius: 15px;
+
+            padding: 20px;
+
+            text-align: center;
+
+            border: 1px solid rgba(255, 255, 255, 0.2);
+
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+
+        }
+
+        
+
+        .stat-value {
+
+            font-size: 3em;
+
+            font-weight: bold;
+
+            margin-bottom: 10px;
+
+            color: #ffd700;
+
+        }
+
+        
+
+        .stat-label {
+
+            font-size: 1.1em;
+
+            opacity: 0.9;
+
+        }
+
+        
+
+        .chart-container {
+
+            background: rgba(255, 255, 255, 0.1);
+
+            backdrop-filter: blur(10px);
+
+            border-radius: 15px;
+
+            padding: 20px;
+
+            margin-bottom: 30px;
+
+            border: 1px solid rgba(255, 255, 255, 0.2);
+
+        }
+
+        
+
+        canvas {
+
+            width: 100%;
+
+            height: 300px;
+
+        }
+
+        
+
+        .info-panel {
+
+            background: rgba(255, 255, 255, 0.1);
+
+            backdrop-filter: blur(10px);
+
+            border-radius: 15px;
+
+            padding: 20px;
+
+            margin-bottom: 30px;
+
+        }
+
+        
+
+        .url-box {
+
+            background: rgba(0, 0, 0, 0.3);
+
+            padding: 15px;
+
+            border-radius: 10px;
+
+            font-family: monospace;
+
+            font-size: 1.2em;
+
+            word-break: break-all;
+
+            margin-top: 10px;
+
+        }
+
+        
+
+        .button {
+
+            background: #ffd700;
+
+            color: #333;
+
+            border: none;
+
+            padding: 10px 20px;
+
+            border-radius: 5px;
+
+            font-size: 1em;
+
+            cursor: pointer;
+
+            transition: all 0.3s;
+
+            font-weight: bold;
+
+        }
+
+        
+
+        .button:hover {
+
+            background: #ffed4a;
+
+            transform: scale(1.05);
+
+        }
+
+        
+
+        .button.danger {
+
+            background: #ff4444;
+
+            color: white;
+
+        }
+
+        
+
+        .button.danger:hover {
+
+            background: #ff6666;
+
+        }
+
+        
+
+        .footer {
+
+            text-align: center;
+
+            margin-top: 30px;
+
+            opacity: 0.7;
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🔥 DDOS MONITOR REALTIME 🔥</h1>
+
+        
+
+        <div class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-value" id="totalRequests">0</div>
+
+                <div class="stat-label">Total Requests</div>
+
+            </div>
+
+            <div class="stat-card">
+
+                <div class="stat-value" id="uniqueIPs">0</div>
+
+                <div class="stat-label">Unique IPs</div>
+
+            </div>
+
+            <div class="stat-card">
+
+                <div class="stat-value" id="rps">0</div>
+
+                <div class="stat-label">Requests/Second</div>
+
+            </div>
+
+            <div class="stat-card">
+
+                <div class="stat-value" id="uptime">0</div>
+
+                <div class="stat-label">Uptime (detik)</div>
+
+            </div>
+
+        </div>
+
+        
+
+        <div class="chart-container">
+
+            <canvas id="requestChart"></canvas>
+
+        </div>
+
+        
+
+        <div class="info-panel">
+
+            <h3>🎯 TARGET URL BUAT DDOS:</h3>
+
+            <div class="url-box" id="targetUrl">Loading...</div>
+
+            <p style="margin-top: 10px; font-size: 0.9em;">
+
+                📌 Arahkan script DDOS lu ke URL di atas!<br>
+
+                🔄 Data update otomatis tiap detik
+
+            </p>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+
+                <button class="button" onclick="copyUrl()">📋 Copy URL</button>
+
+                <button class="button danger" onclick="resetStats()">🔄 Reset Stats</button>
+
+            </div>
+
+        </div>
+
+        
+
+        <div class="footer">
+
+            ⚡ By Dixzz-VIP | Real-time Monitor ⚡
+
+        </div>
+
+    </div>
+
+    <script>
+
+        const socket = io();
+
+        let chart;
+
+        
+
+        // Initialize chart
+
+        function initChart() {
+
+            const ctx = document.getElementById('requestChart').getContext('2d');
+
+            chart = new Chart(ctx, {
+
+                type: 'line',
+
+                data: {
+
+                    labels: [],
+
+                    datasets: [{
+
+                        label: 'Requests per detik',
+
+                        data: [],
+
+                        borderColor: '#ffd700',
+
+                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+
+                        tension: 0.4,
+
+                        fill: true
+
+                    }]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    scales: {
+
+                        y: {
+
+                            beginAtZero: true,
+
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+
+                            ticks: { color: 'white' }
+
+                        },
+
+                        x: {
+
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+
+                            ticks: { color: 'white' }
+
+                        }
+
+                    },
+
+                    plugins: {
+
+                        legend: { labels: { color: 'white' } }
+
+                    }
+
+                }
+
+            });
+
+        }
+
+        // Update stats dari server
+
+        socket.on('stats', (data) => {
+
+            document.getElementById('totalRequests').textContent = data.total.toLocaleString();
+
+            document.getElementById('uniqueIPs').textContent = data.uniqueIPs.toLocaleString();
+
+            document.getElementById('rps').textContent = data.rps.toLocaleString();
+
+            document.getElementById('uptime').textContent = data.uptime.toLocaleString();
+
+            
+
+            // Update chart
+
+            if (chart) {
+
+                chart.data.labels = data.history.map(h => h.time);
+
+                chart.data.datasets[0].data = data.history.map(h => h.count);
+
+                chart.update();
+
+            }
+
+        });
+
+        // Set target URL
+
+        function setTargetUrl() {
+
+            const url = window.location.origin + '/attack';
+
+            document.getElementById('targetUrl').textContent = url;
+
+        }
+
+        // Copy URL ke clipboard
+
+        function copyUrl() {
+
+            const url = document.getElementById('targetUrl').textContent;
+
+            navigator.clipboard.writeText(url).then(() => {
+
+                alert('✅ URL copied!');
+
+            });
+
+        }
+
+        // Reset stats
+
+        function resetStats() {
+
+            if (confirm('Yakin reset semua stats?')) {
+
+                fetch('/reset', { method: 'POST' })
+
+                    .then(() => alert('✅ Stats reset!'));
+
+            }
+
+        }
+
+        // Initialize
+
+        window.onload = () => {
+
+            initChart();
+
+            setTargetUrl();
+
+            
+
+            // Update target URL tiap detik (in case port berubah)
+
+            setInterval(setTargetUrl, 1000);
+
+        };
+
+    </script>
+
+</body>
+
+</html>
